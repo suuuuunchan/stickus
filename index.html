@@ -113,7 +113,7 @@
   .card {
     background:var(--card);
     border-radius:var(--card-radius, 6px);
-    padding:var(--pad-v, 3cqh) var(--pad-h, 5cqw);
+    padding:var(--pad-v, 3%) var(--pad-h, 5%);
     display:flex;
     flex-direction:column;
     container-type:size;
@@ -311,15 +311,15 @@
      - 히트영역: 최소 14px 보장(패딩 0에서도 드래그 가능)
      - 주황 하이라이트(::after): 실제 패딩 폭만 표시 */
   .pad-zone { position:absolute; z-index:4; pointer-events:auto; }
-  .pad-zone.pz-top    { top:0;    left:0; right:0; height:max(14px, var(--pad-v,3cqh)); cursor:ns-resize; }
-  .pad-zone.pz-bottom { bottom:0; left:0; right:0; height:max(14px, var(--pad-v,3cqh)); cursor:ns-resize; }
-  .pad-zone.pz-left   { left:0;  top:0; bottom:0; width:max(14px, var(--pad-h,5cqw)); cursor:ew-resize; }
-  .pad-zone.pz-right  { right:0; top:0; bottom:0; width:max(14px, var(--pad-h,5cqw)); cursor:ew-resize; }
+  .pad-zone.pz-top    { top:0;    left:0; right:0; height:max(14px, var(--pad-v,3%)); cursor:ns-resize; }
+  .pad-zone.pz-bottom { bottom:0; left:0; right:0; height:max(14px, var(--pad-v,3%)); cursor:ns-resize; }
+  .pad-zone.pz-left   { left:0;  top:0; bottom:0; width:max(14px, var(--pad-h,5%)); cursor:ew-resize; }
+  .pad-zone.pz-right  { right:0; top:0; bottom:0; width:max(14px, var(--pad-h,5%)); cursor:ew-resize; }
   .pad-zone::after { content:""; position:absolute; background:rgba(255,140,80,0); transition:background .12s; }
-  .pad-zone.pz-top::after    { top:0;    left:0; right:0; height:var(--pad-v,3cqh); }
-  .pad-zone.pz-bottom::after { bottom:0; left:0; right:0; height:var(--pad-v,3cqh); }
-  .pad-zone.pz-left::after   { left:0;  top:0; bottom:0; width:var(--pad-h,5cqw); }
-  .pad-zone.pz-right::after  { right:0; top:0; bottom:0; width:var(--pad-h,5cqw); }
+  .pad-zone.pz-top::after    { top:0;    left:0; right:0; height:var(--pad-v,3%); }
+  .pad-zone.pz-bottom::after { bottom:0; left:0; right:0; height:var(--pad-v,3%); }
+  .pad-zone.pz-left::after   { left:0;  top:0; bottom:0; width:var(--pad-h,5%); }
+  .pad-zone.pz-right::after  { right:0; top:0; bottom:0; width:var(--pad-h,5%); }
   .pad-zone:hover::after { background:rgba(255,140,80,0.22); }
 
   .mc-pickers { display:none; flex-direction:column; gap:8px; }
@@ -710,6 +710,12 @@
         </div>
         <p class="hint" style="margin-top:0">대지에서 카드 가장자리를 드래그해도 조정됩니다.</p>
       </div>
+      <label style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;">카드 크기</label>
+      <div class="rangewrap">
+        <input type="range" id="cardZoom" min="30" max="100" step="1" value="84">
+        <output id="cardZoomOut">84%</output>
+      </div>
+      <p class="hint" style="margin-top:0">비율을 유지하며 카드 크기를 조절합니다.</p>
     </div>
 
     <div class="group">
@@ -1077,6 +1083,8 @@
   let artboardAR = 4/3;
   let artboardFull = false;
   let cardAR = 5/4;
+  let cardFillFactor = 0.84;   // 대지 대비 카드 채움 비율 (0.3~1.0)
+  let cardIsCustom = false;    // 커스텀 마진 모드 여부
   let marginH = 11, marginV = 11;   // 카드 좌우/상하 여백 (대지 너비/높이 대비 %)
   let artboardW = 0, artboardH = 0;
   let cardW = 0;        // 현재 카드 너비(px) — 필터 스케일 계산용
@@ -1118,6 +1126,7 @@
     card.style.height = ch + 'px';
     cardW = cw;
     cardH = ch;
+    updatePadPx();   // 패딩을 카드 px 기준으로 재계산 (비율 유지)
     autoFitHeadline();
     applyEffects();
     if (typeof layoutAllStickers === 'function') layoutAllStickers();
@@ -1136,7 +1145,9 @@
     artboard.style.height = h + 'px';
     artboardW = w;
     artboardH = h;
-    fitCard();
+    // Full 모드에서는 대지 비율이 변하므로 AR을 재보정해야 함
+    if (artboardFull && !cardIsCustom) applyCardAspect(cardAR);
+    else fitCard();
   }
   window.addEventListener('resize', fitArtboard);
 
@@ -1161,9 +1172,10 @@
     marginVEl.value = marginV; marginVval.value = +marginV.toFixed(1);
     marginHEl.value = marginH; marginHval.value = +marginH.toFixed(1);
   }
-  function applyCardAspect(ar){
+  function applyCardAspect(ar, fillFactor){
     if (!artboardW) return;
-    const f = 0.84;  // 기본 채움 비율
+    if (fillFactor !== undefined) cardFillFactor = fillFactor;
+    const f = cardFillFactor;
     const aw = artboardW*f, ah = artboardH*f;
     let cw, ch;
     if (aw/ah > ar) { ch = ah; cw = ch*ar; } else { cw = aw; ch = cw/ar; }
@@ -1173,6 +1185,7 @@
   }
   const customSizeBox = document.getElementById('customSize');
   function setCustomMode(){
+    cardIsCustom = true;
     document.querySelectorAll('#cardSeg button').forEach(x=>x.classList.toggle('active', x.dataset.ar==='custom'));
     customSizeBox.style.display = 'flex';
   }
@@ -1181,9 +1194,11 @@
       document.querySelectorAll('#cardSeg button').forEach(x=>x.classList.remove('active'));
       b.classList.add('active');
       if (b.dataset.ar === 'custom'){
+        cardIsCustom = true;
         customSizeBox.style.display = 'flex';   // 현재 여백 유지, 슬라이더만 노출
         syncMarginUI();
       } else {
+        cardIsCustom = false;
         customSizeBox.style.display = 'none';
         cardAR = parseAR(b.dataset.ar);
         applyCardAspect(cardAR);
@@ -1204,6 +1219,21 @@
   }
   bindMargin(marginVEl, marginVval, true);
   bindMargin(marginHEl, marginHval, false);
+
+  // 카드 크기 슬라이더 (비율 유지, 커스텀 모드 해제)
+  const cardZoomEl  = document.getElementById('cardZoom');
+  const cardZoomOut = document.getElementById('cardZoomOut');
+  cardZoomEl.addEventListener('input', ()=>{
+    const pct = parseInt(cardZoomEl.value);
+    cardZoomOut.textContent = pct + '%';
+    cardIsCustom = false;
+    customSizeBox.style.display = 'none';
+    // 커스텀 버튼 비활성화, 현재 cardAR 버튼 활성화
+    document.querySelectorAll('#cardSeg button').forEach(x=>
+      x.classList.toggle('active', x.dataset.ar!=='custom' && Math.abs(parseAR(x.dataset.ar||'0/1')-cardAR)<1e-6)
+    );
+    applyCardAspect(cardAR, pct / 100);
+  });
 
   // 대지에서 카드 가장자리 드래그 = 카드 크기 (→ 커스텀 자동 전환)
   document.querySelectorAll('.margin-zone').forEach(z=>{
@@ -1235,14 +1265,19 @@
   });
 
   /* ----- 여백(글자↔카드 패딩): --pad-v / --pad-h ----- */
-  let padV = 3, padH = 5;   // cqh / cqw
+  let padV = 3, padH = 5;   // 카드 크기 대비 % (상하 0-4, 좌우 0-6)
   const padVEl = document.getElementById('padV');
   const padVval = document.getElementById('padVval');
   const padHEl = document.getElementById('padH');
   const padHval = document.getElementById('padHval');
+  // padV/padH(%)를 px으로 환산해 CSS 변수에 반영 → 카드 크기가 바뀌어도 비율 유지
+  function updatePadPx(){
+    if (!cardW || !cardH) return;
+    root.style.setProperty('--pad-v', (padV / 100 * cardH).toFixed(1) + 'px');
+    root.style.setProperty('--pad-h', (padH / 100 * cardW).toFixed(1) + 'px');
+  }
   function applyPad(){
-    root.style.setProperty('--pad-v', padV + 'cqh');
-    root.style.setProperty('--pad-h', padH + 'cqw');
+    updatePadPx();
     autoFitHeadline(); applyEffects();
   }
   function syncPadUI(){
@@ -2075,6 +2110,9 @@
     bgImageURL=''; bgFile.value=''; bgImageClear.style.display='none';
     meshPoints=[]; meshDataURL='';
     applyBg();
+    // 카드 크기 슬라이더 초기화
+    cardFillFactor=0.84; cardIsCustom=false;
+    cardZoomEl.value=84; cardZoomOut.textContent='84%';
     // 서체 / 굵기 / 크기
     currentFont = 'ClashGrotesk'; fontSel.value = 'ClashGrotesk';
     root.style.setProperty('--font', '"ClashGrotesk"');
@@ -2632,7 +2670,7 @@
         bgType, grad1, grad2, grad3, gradAngle, gradUse3,
         bgImage: includeImages ? bgImageURL : '',
         meshPoints: meshPoints.map(p=>({...p})),
-        artboardFull, artboardAR, cardAR,
+        artboardFull, artboardAR, cardAR, cardFillFactor,
         cardCustom: ($('cardSeg').querySelector('button.active')||{}).dataset?.ar === 'custom',
         marginH, marginV, padV, padH, radius: cardRadius.value,
         shape: shapeType, stroke: strokeType, fill: fillOn, strokeColor, rough: roughAmt,
@@ -2699,6 +2737,9 @@
     segActiveBy('#artboardSeg','ar', artboardFull?'full':null);
     if(!artboardFull) document.querySelectorAll('#artboardSeg button').forEach(x=>x.classList.toggle('active', Math.abs(parseAR(x.dataset.ar||'0/1')-artboardAR)<1e-6 && x.dataset.ar!=='full'));
     cardAR=f.cardAR??(5/4); marginH=f.marginH??11; marginV=f.marginV??11;
+    cardFillFactor=f.cardFillFactor??0.84;
+    const zoomPct=Math.round(cardFillFactor*100);
+    cardZoomEl.value=zoomPct; cardZoomOut.textContent=zoomPct+'%';
     if (f.cardCustom){ setCustomMode(); }
     else { document.querySelectorAll('#cardSeg button').forEach(x=>x.classList.toggle('active', x.dataset.ar!=='custom' && Math.abs(parseAR(x.dataset.ar)-cardAR)<1e-6)); $('customSize').style.display='none'; }
     syncMarginUI();
@@ -2916,48 +2957,130 @@
   function buildShareHTML(frontURL, backURL, bgURL){
     const ar = (artboardW/artboardH).toFixed(4);
     const full = artboardFull;
-    // 카드 위치/크기 (대지 대비 %) — 에디터와 동일
-    const cardL = marginH.toFixed(3);
-    const cardT = marginV.toFixed(3);
+    const cardL    = marginH.toFixed(3);
+    const cardT    = marginV.toFixed(3);
     const cardWpct = (100 - 2*marginH).toFixed(3);
     const cardHpct = (100 - 2*marginV).toFixed(3);
-    // 대지 스케일 규칙: FULL=화면 가득 / 그 외=한 변을 꽉 채우고 나머지는 블랙 여백
     const stageCSS = full
       ? `width:100vw;height:100vh`
       : `aspect-ratio:${ar};width:min(100vw, calc(100vh * ${ar}));height:min(100vh, calc(100vw / ${ar}))`;
     const bgFit = full ? 'cover' : 'fill';
-    return `<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+    return `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Card</title><style>
-*{margin:0;box-sizing:border-box}
-html,body{width:100%;height:100%}
-body{height:100vh;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;font-family:system-ui,sans-serif}
-.stage{position:relative;${stageCSS};cursor:pointer}
-.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:${bgFit};display:block}
+*{margin:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-select:none}
+body{height:100vh;display:flex;align-items:center;justify-content:center;background:#000;font-family:system-ui,sans-serif}
+.stage{position:relative;${stageCSS};cursor:pointer;touch-action:none}
+.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:${bgFit};display:block;pointer-events:none}
 .cardwrap{position:absolute;left:${cardL}%;top:${cardT}%;width:${cardWpct}%;height:${cardHpct}%;perspective:2000px}
-.flip{width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:rotateY(0);}
-.flip.b{animation:tb .62s cubic-bezier(.4,0,.2,1) forwards}
-.flip.f{animation:tf .62s cubic-bezier(.4,0,.2,1) forwards}
+.flip{width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:rotateY(0)}
+.flip.b{animation:tb .58s cubic-bezier(.4,0,.2,1) forwards}
+.flip.f{animation:tf .58s cubic-bezier(.4,0,.2,1) forwards}
 @keyframes tb{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(90deg) scale(.78)}100%{transform:rotateY(180deg) scale(1)}}
 @keyframes tf{0%{transform:rotateY(180deg) scale(1)}50%{transform:rotateY(90deg) scale(.78)}100%{transform:rotateY(0) scale(1)}}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.face img{width:100%;height:100%;display:block;object-fit:fill}
+.face img{width:100%;height:100%;display:block;object-fit:fill;pointer-events:none}
 .back{transform:rotateY(180deg)}
-.hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;color:#888;font-size:13px;letter-spacing:.02em}
+/* 힌트: 3초 후 자동 페이드아웃 */
+.hint{
+  position:fixed;bottom:max(env(safe-area-inset-bottom,0px) + 14px, 18px);
+  left:0;right:0;text-align:center;
+  color:#aaa;font-size:13px;letter-spacing:.02em;
+  animation:fadeHint 4s ease forwards;
+  pointer-events:none;
+}
+@keyframes fadeHint{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+/* 스와이프 화살표 피드백 */
+.swipe-arrow{
+  position:fixed;top:50%;transform:translateY(-50%);
+  font-size:32px;color:rgba(255,255,255,.6);
+  pointer-events:none;opacity:0;transition:opacity .15s;
+}
+.swipe-arrow.left{left:14px}.swipe-arrow.right{right:14px}
+.swipe-arrow.show{opacity:1}
 </style></head><body>
 <div class="stage" id="w">
-<img class="bg" src="${bgURL}" alt="">
-<div class="cardwrap"><div class="flip" id="f">
-<div class="face front"><img src="${frontURL}" alt="front"></div>
-<div class="face back"><img src="${backURL}" alt="back"></div>
-</div></div>
+  <img class="bg" src="${bgURL}" alt="">
+  <div class="cardwrap"><div class="flip" id="f">
+    <div class="face front"><img src="${frontURL}" alt="front"></div>
+    <div class="face back"><img src="${backURL}" alt="back"></div>
+  </div></div>
 </div>
-<div class="hint">클릭하면 앞·뒤가 넘어갑니다</div>
+<div class="hint" id="hint"></div>
+<div class="swipe-arrow left"  id="sa-l">‹</div>
+<div class="swipe-arrow right" id="sa-r">›</div>
 <script>
-var f=document.getElementById('f'),b=false;
-document.getElementById('w').addEventListener('click',function(){
-  b=!b; f.classList.remove('b','f'); void f.offsetWidth; f.classList.add(b?'b':'f');
-});
+(function(){
+  var f=document.getElementById('f'), busy=false, flipped=false;
+
+  /* ── 힌트 텍스트 (기기 판별) ── */
+  var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  document.getElementById('hint').textContent = isMobile
+    ? '탭하거나 옆으로 스와이프하면 앞·뒤가 넘어갑니다'
+    : '클릭하면 앞·뒤가 넘어갑니다';
+
+  /* ── 플립 실행 ── */
+  function doFlip(dir){
+    if (busy) return;
+    busy = true;
+    flipped = !flipped;
+    f.classList.remove('b','f');
+    void f.offsetWidth;
+    f.classList.add(flipped ? 'b' : 'f');
+    // 스와이프 방향 화살표 피드백
+    if (dir){
+      var el=document.getElementById(dir==='left'?'sa-r':'sa-l');
+      el.classList.add('show');
+      setTimeout(function(){el.classList.remove('show');},300);
+    }
+    setTimeout(function(){busy=false;}, 660);
+  }
+
+  /* ── 데스크톱: 클릭 ── */
+  document.getElementById('w').addEventListener('click', function(){
+    doFlip(null);
+  });
+
+  /* ── 모바일: 터치 탭 + 스와이프 ── */
+  var tx0=0, ty0=0, tt0=0, moved=false;
+
+  document.getElementById('w').addEventListener('touchstart', function(e){
+    tx0=e.touches[0].clientX;
+    ty0=e.touches[0].clientY;
+    tt0=Date.now();
+    moved=false;
+  },{passive:true});
+
+  document.getElementById('w').addEventListener('touchmove', function(e){
+    var dx=Math.abs(e.touches[0].clientX-tx0);
+    var dy=Math.abs(e.touches[0].clientY-ty0);
+    if(dx>8||dy>8) moved=true;
+    // 수평 스와이프 중 세로 스크롤 방지
+    if(dx>dy) e.preventDefault();
+  },{passive:false});
+
+  document.getElementById('w').addEventListener('touchend', function(e){
+    var dx=e.changedTouches[0].clientX-tx0;
+    var dy=e.changedTouches[0].clientY-ty0;
+    var adx=Math.abs(dx), ady=Math.abs(dy);
+    var dt=Date.now()-tt0;
+    // 탭: 짧고 거의 움직임 없음
+    var isTap = dt<250 && adx<14 && ady<14;
+    // 스와이프: 가로 50px 이상, 가로>세로×1.2
+    var isSwipe = adx>50 && adx>ady*1.2;
+    if(isTap){ doFlip(null); }
+    else if(isSwipe){ doFlip(dx<0?'left':'right'); }
+  },{passive:true});
+
+  /* ── 키보드: 좌우 화살표 ── */
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight') doFlip(e.key==='ArrowLeft'?'left':'right');
+  });
+})();
 <\/script></body></html>`;
   }
 
