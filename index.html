@@ -209,6 +209,35 @@
   }
   .combo-chip .cc-text { width:46%; height:3px; border-radius:2px; }
 
+  /* 서체 프리뷰 박스 그리드 */
+  .font-grid { display:flex; flex-wrap:wrap; gap:7px; }
+  .font-box {
+    flex:1 1 calc(50% - 4px); min-width:0;
+    height:46px; border:1px solid #ddd; border-radius:8px;
+    background:#fafafa; cursor:pointer; padding:4px 8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; line-height:1; color:#222; letter-spacing:-.01em;
+    white-space:nowrap; overflow:hidden;
+    transition:border-color .12s, background .12s;
+  }
+  .font-box:hover { border-color:#111; }
+  .font-box.active { border-color:#111; background:#111; color:#fff; }
+  /* 서체 미니 프리뷰 윈도우 */
+  #font-preview-pop {
+    position:fixed; z-index:2500; pointer-events:none;
+    background:#fff; border:1px solid #e2e2e2; border-radius:12px;
+    box-shadow:0 10px 34px rgba(0,0,0,.18);
+    padding:18px 22px; max-width:300px;
+    opacity:0; transform:translateY(4px);
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #font-preview-pop.show { opacity:1; transform:translateY(0); }
+  #font-preview-pop .fp-word {
+    font-size:38px; line-height:1.05; color:#111;
+    text-transform:uppercase; white-space:nowrap;
+  }
+  #font-preview-pop .fp-name { font-size:11px; color:#999; margin-top:6px; }
+
   .actions { display:flex; flex-direction:column; gap:9px; }
   .actions button { border:1px solid #111; background:#fff; color:#111; border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; }
   .actions button:hover { opacity:.85; }
@@ -470,6 +499,35 @@
   .tp-label output { font-size:10px; font-weight:400; color:#555; font-variant-numeric:tabular-nums; }
   #type-popup input[type=range] { width:100%; margin:0; }
 
+  /* ── 폰트 선택 그리드 ── */
+  .font-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .font-tile {
+    flex:1 1 calc(50% - 3px); min-width:0;
+    height:52px; border:1px solid #e0e0e0; border-radius:8px;
+    background:#fafafa; cursor:pointer; padding:0 10px;
+    display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+    overflow:hidden; transition:border-color .12s, background .12s;
+  }
+  .font-tile:hover { border-color:#aaa; background:#f5f5f5; }
+  .font-tile.active { border-color:#111; background:#fff; }
+  .font-tile-text { font-size:18px; line-height:1.15; color:#111; white-space:nowrap; max-width:100%; overflow:hidden; }
+  .font-tile-meta { font-size:9px; color:#ccc; font-family:system-ui,sans-serif; letter-spacing:.04em; margin-top:2px; text-transform:uppercase; }
+  .font-tile.active .font-tile-meta { color:#999; }
+
+  /* ── 폰트 호버 미니 윈도우 ── */
+  #font-hover-popup {
+    position:fixed; z-index:1500; pointer-events:none;
+    background:#fff; border:1px solid #ebebeb;
+    border-radius:14px; padding:14px 18px 12px;
+    box-shadow:0 10px 36px rgba(0,0,0,.13);
+    opacity:0; transform:translateX(10px);
+    transition:opacity .15s ease, transform .15s ease;
+    min-width:180px;
+  }
+  #font-hover-popup.show { opacity:1; transform:translateX(0); }
+  .fhp-preview { font-size:32px; line-height:1.15; color:#111; text-transform:uppercase; white-space:nowrap; }
+  .fhp-meta { font-size:10px; color:#bbb; margin-top:6px; font-family:system-ui,sans-serif; letter-spacing:.05em; }
+
   /* ── 뒷면 요소 서체 팝업 ── */
   #back-font-popup {
     position:fixed; z-index:999;
@@ -665,12 +723,13 @@
 
     <div class="group">
       <label>서체</label>
-      <select id="fontSel"></select>
+      <select id="fontSel" style="display:none"></select>
+      <div class="font-grid" id="fontGrid"></div>
       <div class="seg" id="weightSeg"></div>
       <label style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;">텍스트 크기</label>
-      <div class="seg" id="fontSizeSeg">
-        <button data-fs="12cqw" class="active">S</button>
-        <button data-fs="16cqw">L</button>
+      <div class="rangewrap">
+        <input type="range" id="fontSizeRange" min="8" max="24" step="0.5" value="12">
+        <output id="fontSizeOut">12</output>
       </div>
       <label style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;">정렬</label>
       <div class="seg" id="alignSeg">
@@ -830,6 +889,7 @@
         <button class="sticker-add-btn" data-sticker="stickers/coffee.png"><img src="stickers/coffee.png" alt="coffee"></button>
         <button class="sticker-add-btn" data-sticker="stickers/alarm.png"><img src="stickers/alarm.png" alt="alarm"></button>
         <button class="sticker-add-btn" data-sticker="stickers/smile.png"><img src="stickers/smile.png" alt="smile"></button>
+        <button class="sticker-add-btn" data-sticker="stickers/present.png"><img src="stickers/present.png" alt="present"></button>
         <button class="sticker-add-btn sticker-upload-btn" id="stickerUploadBtn" title="내 스티커 추가">+</button>
       </div>
       <input type="file" id="stickerUploadInput" accept="image/png,image/*" multiple style="display:none">
@@ -955,6 +1015,12 @@
   <div id="back-font-popup">
     <div class="tp-label" id="backFontPopupLabel">서체</div>
     <select id="backElemFont"></select>
+  </div>
+
+  <!-- 서체 미니 프리뷰 윈도우 (호버 시) -->
+  <div id="font-preview-pop">
+    <div class="fp-word" id="fpWord">WELCOME!</div>
+    <div class="fp-name" id="fpName"></div>
   </div>
 
 <!-- 메쉬 그라디언트 편집 모달 -->
@@ -1482,6 +1548,71 @@
   fillFontSelect(fontSel);
   fontSel.value = 'ClashGrotesk';
 
+  /* ----- 서체 프리뷰 박스 그리드 + 호버 미니 윈도우 ----- */
+  const fontGrid = document.getElementById('fontGrid');
+  const fontPreviewPop = document.getElementById('font-preview-pop');
+  const fpWord = document.getElementById('fpWord');
+  const fpName = document.getElementById('fpName');
+  let fpTimer = null, fpMouse = { x:0, y:0 };
+
+  function positionFontPreview(){
+    const pw = fontPreviewPop.offsetWidth  || 200;
+    const ph = fontPreviewPop.offsetHeight || 80;
+    let left = fpMouse.x + 18;
+    let top  = fpMouse.y - ph/2;
+    if (left + pw > window.innerWidth - 8) left = fpMouse.x - pw - 18;  // 우측 공간 부족 시 좌측
+    top = Math.max(8, Math.min(top, window.innerHeight - ph - 8));
+    fontPreviewPop.style.left = left + 'px';
+    fontPreviewPop.style.top  = top + 'px';
+  }
+  function showFontPreview(key){
+    const f = FONTS[key];
+    fpWord.style.fontFamily = '"'+key+'", sans-serif';
+    fpWord.style.fontWeight = f.maxW;
+    fpName.textContent = f.label;
+    positionFontPreview();
+    fontPreviewPop.classList.add('show');
+  }
+  function hideFontPreview(){
+    clearTimeout(fpTimer); fpTimer = null;
+    fontPreviewPop.classList.remove('show');
+  }
+
+  function buildFontGrid(){
+    fontGrid.innerHTML = '';
+    Object.entries(FONTS).forEach(([key,f])=>{
+      const box = document.createElement('div');
+      box.className = 'font-box';
+      box.dataset.font = key;
+      box.textContent = 'WELCOME!';
+      box.style.fontFamily = '"'+key+'", sans-serif';
+      box.style.fontWeight = f.maxW;
+      box.addEventListener('click', ()=>{
+        fontSel.value = key;
+        fontSel.dispatchEvent(new Event('change'));
+        hideFontPreview();
+      });
+      // 0.3초 이상 호버 시 미니 윈도우, 이탈 시 즉시 닫힘
+      box.addEventListener('mouseenter', e=>{
+        fpMouse = { x:e.clientX, y:e.clientY };
+        clearTimeout(fpTimer);
+        fpTimer = setTimeout(()=> showFontPreview(key), 300);
+      });
+      box.addEventListener('mousemove', e=>{
+        fpMouse = { x:e.clientX, y:e.clientY };
+        if (fontPreviewPop.classList.contains('show')) positionFontPreview();
+      });
+      box.addEventListener('mouseleave', hideFontPreview);
+      fontGrid.appendChild(box);
+    });
+    updateFontGridActive();
+  }
+  function updateFontGridActive(){
+    fontGrid.querySelectorAll('.font-box').forEach(b=>
+      b.classList.toggle('active', b.dataset.font===currentFont));
+  }
+  buildFontGrid();
+
   // 현재 폰트 기준 굵기 버튼 생성 (+ Heavy+ fake-bold)
   function buildWeights(){
     const f = FONTS[currentFont];
@@ -1515,18 +1646,19 @@
     fakeBold = false;
     root.style.setProperty('--w-head', currentWeight);
     buildWeights();
+    updateFontGridActive();
     computeTopAdj(); computeSubSize(); autoFitHeadline(); applyEffects();
     document.fonts.ready.then(()=>{ computeTopAdj(); computeSubSize(); autoFitHeadline(); applyEffects(); }); // 폰트 로드 후 재측정
   });
 
-  document.querySelectorAll('#fontSizeSeg button').forEach(b=>{
-    b.addEventListener('click',()=>{
-      document.querySelectorAll('#fontSizeSeg button').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      root.style.setProperty('--font-size-head', b.dataset.fs);
-      baseFontFrac = parseFloat(b.dataset.fs) / 100;
-      autoFitHeadline(); applyEffects();
-    });
+  const fontSizeRange = document.getElementById('fontSizeRange');
+  const fontSizeOut   = document.getElementById('fontSizeOut');
+  fontSizeRange.addEventListener('input', ()=>{
+    const v = parseFloat(fontSizeRange.value);
+    fontSizeOut.textContent = v;
+    root.style.setProperty('--font-size-head', v + 'cqw');
+    baseFontFrac = v / 100;
+    autoFitHeadline(); applyEffects();
   });
 
   // 뒷면 서체
@@ -1926,9 +2058,9 @@
     // 서체 / 굵기 / 크기
     currentFont = 'ClashGrotesk'; fontSel.value = 'ClashGrotesk';
     root.style.setProperty('--font', '"ClashGrotesk"');
-    currentWeight = 700; fakeBold = false; buildWeights();
+    currentWeight = 700; fakeBold = false; buildWeights(); updateFontGridActive();
     baseFontFrac = 0.12; root.style.setProperty('--font-size-head','12cqw');
-    segActivate('#fontSizeSeg','12cqw');
+    fontSizeRange.value = 12; fontSizeOut.textContent = 12;
     // 정렬
     root.style.setProperty('--head-align','center'); segActivate('#alignSeg','center');
     // 쉐입 / 스트로크 / 채움 / 텍스처
@@ -2492,11 +2624,11 @@
     root.style.setProperty('--font', '"'+currentFont+'"');
     currentWeight = f.weight ?? 700; fakeBold = !!f.fakeBold;
     root.style.setProperty('--w-head', currentWeight);
-    buildWeights();
+    buildWeights(); updateFontGridActive();
     baseFontFrac = f.sizeFrac ?? 0.12;
-    const fsLabel = Math.round(baseFontFrac*100)+'cqw';
-    root.style.setProperty('--font-size-head', fsLabel);
-    segActiveBy('#fontSizeSeg','fs', fsLabel);
+    const fsCqw = +(baseFontFrac*100).toFixed(1);
+    root.style.setProperty('--font-size-head', fsCqw+'cqw');
+    fontSizeRange.value = fsCqw; fontSizeOut.textContent = fsCqw;
     root.style.setProperty('--head-align', f.align||'center');
     segActiveBy('#alignSeg','align', f.align||'center');
     lhSlider.value=f.lh??'1.02'; lhOut.textContent=(+lhSlider.value).toFixed(2); root.style.setProperty('--head-lh', lhSlider.value);
@@ -2689,28 +2821,95 @@
     } catch(e){ setMsg('오류: '+e.message); }
   });
 
-  function buildShareHTML(frontURL, backURL){
+  // 카드만 투명 배경으로 캡처 (공유용 — 배경은 따로, 카드만 플립)
+  async function cardFaceToPng(which){
+    if (!window.htmlToImage) throw new Error('html-to-image 로드 실패 (인터넷 필요)');
+    const fx = document.getElementById('fx-defs');
+    const home = fx.parentNode;
+    deselectStickers();
+    const savedFlipperT = cardFlipper.style.transform;
+    cardFlipper.classList.remove('to-back','to-front');
+    cardFlipper.style.transform = 'none';
+    cardFrontEl.style.backfaceVisibility = 'visible';
+    cardBackEl.style.backfaceVisibility  = 'visible';
+    cardBackEl.style.transform = 'none';
+    const target = which === 'front' ? cardFrontEl : cardBackEl;
+    cardFrontEl.style.visibility = which==='front' ? 'visible' : 'hidden';
+    cardBackEl.style.visibility  = which==='back'  ? 'visible' : 'hidden';
+    target.appendChild(fx);
+    try {
+      return await htmlToImage.toPng(target, {
+        pixelRatio: 3,
+        backgroundColor: undefined,   // 투명 배경
+        filter: (n)=>{
+          if (!n.classList) return true;
+          return !(n.classList.contains('margin-zone') || n.classList.contains('pad-zone') ||
+                   n.classList.contains('sticker-handle') || n.classList.contains('sticker-rot') ||
+                   n.classList.contains('sticker-del'));
+        }
+      });
+    } finally {
+      home.appendChild(fx);
+      cardFlipper.style.transform = savedFlipperT;
+      cardFrontEl.style.visibility=''; cardFrontEl.style.backfaceVisibility='';
+      cardBackEl.style.visibility='';  cardBackEl.style.backfaceVisibility=''; cardBackEl.style.transform='';
+      cardFlipper.classList.add(isFlipped ? 'to-back' : 'to-front');
+    }
+  }
+
+  // 배경(대지)만 캡처 — 카드를 잠시 숨김
+  async function backgroundToPng(){
+    if (!window.htmlToImage) throw new Error('html-to-image 로드 실패 (인터넷 필요)');
+    deselectStickers();
+    const cardScene = document.getElementById('card');
+    const saved = cardScene.style.visibility;
+    cardScene.style.visibility = 'hidden';
+    try {
+      return await htmlToImage.toPng(artboard, { pixelRatio: 3, style:{ boxShadow:'none' } });
+    } finally {
+      cardScene.style.visibility = saved;
+    }
+  }
+
+  function buildShareHTML(frontURL, backURL, bgURL){
     const ar = (artboardW/artboardH).toFixed(4);
+    const full = artboardFull;
+    // 카드 위치/크기 (대지 대비 %) — 에디터와 동일
+    const cardL = marginH.toFixed(3);
+    const cardT = marginV.toFixed(3);
+    const cardWpct = (100 - 2*marginH).toFixed(3);
+    const cardHpct = (100 - 2*marginV).toFixed(3);
+    // 대지 스케일 규칙: FULL=화면 가득 / 그 외=한 변을 꽉 채우고 나머지는 블랙 여백
+    const stageCSS = full
+      ? `width:100vw;height:100vh`
+      : `aspect-ratio:${ar};width:min(100vw, calc(100vh * ${ar}));height:min(100vh, calc(100vw / ${ar}))`;
+    const bgFit = full ? 'cover' : 'fill';
     return `<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Card</title><style>
 *{margin:0;box-sizing:border-box}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#e9e9ee;font-family:system-ui,sans-serif}
-.wrap{width:min(86vw,560px);aspect-ratio:${ar};perspective:2000px;cursor:pointer}
+html,body{width:100%;height:100%}
+body{height:100vh;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;font-family:system-ui,sans-serif}
+.stage{position:relative;${stageCSS};cursor:pointer}
+.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:${bgFit};display:block}
+.cardwrap{position:absolute;left:${cardL}%;top:${cardT}%;width:${cardWpct}%;height:${cardHpct}%;perspective:2000px}
 .flip{width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:rotateY(0);}
 .flip.b{animation:tb .62s cubic-bezier(.4,0,.2,1) forwards}
 .flip.f{animation:tf .62s cubic-bezier(.4,0,.2,1) forwards}
-@keyframes tb{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(90deg) scale(.75)}100%{transform:rotateY(180deg) scale(1)}}
-@keyframes tf{0%{transform:rotateY(180deg) scale(1)}50%{transform:rotateY(90deg) scale(.75)}100%{transform:rotateY(0) scale(1)}}
+@keyframes tb{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(90deg) scale(.78)}100%{transform:rotateY(180deg) scale(1)}}
+@keyframes tf{0%{transform:rotateY(180deg) scale(1)}50%{transform:rotateY(90deg) scale(.78)}100%{transform:rotateY(0) scale(1)}}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.face img{width:100%;height:100%;display:block;object-fit:contain}
+.face img{width:100%;height:100%;display:block;object-fit:fill}
 .back{transform:rotateY(180deg)}
-.hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;color:#999;font-size:13px;letter-spacing:.02em}
+.hint{position:fixed;bottom:18px;left:0;right:0;text-align:center;color:#888;font-size:13px;letter-spacing:.02em}
 </style></head><body>
-<div class="wrap" id="w"><div class="flip" id="f">
+<div class="stage" id="w">
+<img class="bg" src="${bgURL}" alt="">
+<div class="cardwrap"><div class="flip" id="f">
 <div class="face front"><img src="${frontURL}" alt="front"></div>
 <div class="face back"><img src="${backURL}" alt="back"></div>
 </div></div>
+</div>
 <div class="hint">클릭하면 앞·뒤가 넘어갑니다</div>
 <script>
 var f=document.getElementById('f'),b=false;
@@ -2723,9 +2922,10 @@ document.getElementById('w').addEventListener('click',function(){
   document.getElementById('exportShareBtn').addEventListener('click', async ()=>{
     setMsg('공유 페이지 생성 중…');
     try {
-      const front = await artboardToPng('front');
-      const back  = await artboardToPng('back');
-      const blob = new Blob([buildShareHTML(front, back)], {type:'text/html'});
+      const front = await cardFaceToPng('front');
+      const back  = await cardFaceToPng('back');
+      const bg    = await backgroundToPng();
+      const blob = new Blob([buildShareHTML(front, back, bg)], {type:'text/html'});
       downloadURL(URL.createObjectURL(blob), 'share.html');
       setMsg('완료! share.html을 GitHub Pages에 올리면 공유됩니다.');
     } catch(e){ setMsg('오류: '+e.message); }
