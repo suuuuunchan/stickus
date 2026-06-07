@@ -358,7 +358,7 @@
     background:var(--back-paper,#fffdf8);
     container-type:inline-size;
     display:flex; flex-direction:column;
-    padding:4cqw 5cqw 3cqw;
+    padding:var(--back-pad-t,4cqw) var(--back-pad-h,5cqw) var(--back-pad-b,3cqw);
     border-radius:var(--card-radius,6px);
   }
   .back-header {
@@ -953,10 +953,15 @@
     <div class="group">
       <label>내보내기 / 공유</label>
       <div class="actions">
+        <button id="exportLinkBtn">🔗 공유 링크 생성</button>
         <button id="exportPngBtn">🖼 PNG 저장 (앞·뒤 2장)</button>
-        <button id="exportShareBtn">🔗 공유용 HTML 저장 (클릭 플립)</button>
+        <button id="exportShareBtn">💾 공유용 HTML 파일 저장</button>
       </div>
-      <p class="hint" style="margin-top:0" id="exportMsg">고화질 PNG 2장 또는 클릭으로 앞뒤 넘기는 공유 페이지를 저장합니다.</p>
+      <div id="exportLinkRow" style="display:none;gap:6px;margin-top:2px">
+        <input type="text" id="exportLinkInput" readonly style="flex:1;min-width:0;border:1px solid #ddd;border-radius:6px;padding:7px 9px;font-size:11px;font-family:'SF Mono',monospace;color:#333;outline:none">
+        <button class="btn-ghost" id="exportLinkCopy" style="width:auto;padding:7px 12px">복사</button>
+      </div>
+      <p class="hint" style="margin-top:0" id="exportMsg">링크 생성 시 받는 사람은 링크만 열면 앞뒤 카드를 볼 수 있어요.</p>
     </div>
 
     <hr/>
@@ -1019,6 +1024,24 @@
           <output id="backSizeOut">100%</output>
         </div>
         <p class="hint" style="margin-top:0">From·날짜·본문을 클릭하면 우측에 서체 선택 팝업이 나타납니다.</p>
+      </div>
+      <div class="group">
+        <label>여백 (내용 ↔ 카드)</label>
+        <div class="control-row">
+          <span class="mlbl">상</span>
+          <input type="range" id="backPadT" min="0" max="12" step="0.5" value="4">
+          <input type="number" class="val-input" id="backPadTval" min="0" max="12" step="0.5" value="4">
+        </div>
+        <div class="control-row">
+          <span class="mlbl">하</span>
+          <input type="range" id="backPadB" min="0" max="12" step="0.5" value="3">
+          <input type="number" class="val-input" id="backPadBval" min="0" max="12" step="0.5" value="3">
+        </div>
+        <div class="control-row">
+          <span class="mlbl">좌우</span>
+          <input type="range" id="backPadH" min="0" max="12" step="0.5" value="5">
+          <input type="number" class="val-input" id="backPadHval" min="0" max="12" step="0.5" value="5">
+        </div>
       </div>
     </div><!-- /#panel-back -->
 
@@ -2293,6 +2316,29 @@
     document.getElementById('backSizeOut').textContent = Math.round(e.target.value*100) + '%';
   });
 
+  // 뒷면 여백
+  let backPadT = 4, backPadB = 3, backPadH = 5;
+  function applyBackPad(){
+    root.style.setProperty('--back-pad-t', backPadT + 'cqw');
+    root.style.setProperty('--back-pad-b', backPadB + 'cqw');
+    root.style.setProperty('--back-pad-h', backPadH + 'cqw');
+  }
+  function syncBackPadUI(){
+    $('backPadT').value = backPadT; $('backPadTval').value = +backPadT.toFixed(1);
+    $('backPadB').value = backPadB; $('backPadBval').value = +backPadB.toFixed(1);
+    $('backPadH').value = backPadH; $('backPadHval').value = +backPadH.toFixed(1);
+  }
+  function bindBackPad(rangeId, numId, key){
+    function update(v){ v=Math.max(0,Math.min(12,+v));
+      if(key==='t') backPadT=v; else if(key==='b') backPadB=v; else backPadH=v;
+      applyBackPad(); syncBackPadUI(); scheduleSave(); }
+    $(rangeId).addEventListener('input',  ()=>update($(rangeId).value));
+    $(numId).addEventListener('change',   ()=>update($(numId).value));
+  }
+  bindBackPad('backPadT','backPadTval','t');
+  bindBackPad('backPadB','backPadBval','b');
+  bindBackPad('backPadH','backPadHval','h');
+
   /* ----- 스티커 ----- */
   const stickers = [];          // {el, xf, yf, wf, aspect}
   let selectedSticker = null;
@@ -2686,7 +2732,8 @@
         paper: cssVar('--back-paper')||'#fffdf8',
         line:  cssVar('--back-line-color')||'#c8c8c8',
         btext: cssVar('--back-text')||'#1a1a1a',
-        lineH: $('backLineH').value, scale: $('backSize').value
+        lineH: $('backLineH').value, scale: $('backSize').value,
+        padT: backPadT, padB: backPadB, padH: backPadH
       },
       stickers: stickers.map(s=>({ src:s.src, face:s.face, behind:!!s.behind, wf:s.wf, xf:s.xf, yf:s.yf, rot:s.rot, flipX:s.flipX,
         shadow:s.shadow, shadowAmt:s.shadowAmt, outline:s.outline, outlineW:s.outlineW, outlineColor:s.outlineColor }))
@@ -2777,6 +2824,7 @@
       if(b.btext){ root.style.setProperty('--back-text',b.btext); setCI('backTextColor','backTextColorHex',b.btext); }
       if(b.lineH){ root.style.setProperty('--back-line-h',b.lineH+'em'); $('backLineH').value=b.lineH; $('backLineHOut').textContent=b.lineH+'em'; }
       if(b.scale){ root.style.setProperty('--back-scale',b.scale); $('backSize').value=b.scale; $('backSizeOut').textContent=Math.round(b.scale*100)+'%'; }
+      backPadT=b.padT??4; backPadB=b.padB??3; backPadH=b.padH??5; applyBackPad(); syncBackPadUI();
     }
     // 스티커 재생성
     stickers.slice().forEach(deleteSticker);
@@ -2876,7 +2924,7 @@
     }
     try {
       return await htmlToImage.toPng(artboard, {
-        pixelRatio: 3,
+        pixelRatio: 4,
         style: { boxShadow:'none' },
         filter: (n)=>{
           if (!n.classList) return true;
@@ -2922,7 +2970,7 @@
     target.appendChild(fx);
     try {
       return await htmlToImage.toPng(target, {
-        pixelRatio: 3,
+        pixelRatio: 4,
         backgroundColor: undefined,   // 투명 배경
         filter: (n)=>{
           if (!n.classList) return true;
@@ -2948,7 +2996,7 @@
     const saved = cardScene.style.visibility;
     cardScene.style.visibility = 'hidden';
     try {
-      return await htmlToImage.toPng(artboard, { pixelRatio: 3, style:{ boxShadow:'none' } });
+      return await htmlToImage.toPng(artboard, { pixelRatio: 4, style:{ boxShadow:'none' } });
     } finally {
       cardScene.style.visibility = saved;
     }
@@ -2956,18 +3004,25 @@
 
   function buildShareHTML(frontURL, backURL, bgURL){
     const ar = (artboardW/artboardH).toFixed(4);
+    const cardActualAR = (cardW/cardH).toFixed(4);   // 캡처된 카드의 실제 비율
     const full = artboardFull;
     const cardL    = marginH.toFixed(3);
     const cardT    = marginV.toFixed(3);
     const cardWpct = (100 - 2*marginH).toFixed(3);
     const cardHpct = (100 - 2*marginV).toFixed(3);
+    // FULL: stage는 화면 전체. 카드는 자체 비율을 고정(aspect-ratio)하고
+    //       에디터에서의 상대 footprint 안에 contain → 어떤 화면에서도 안 늘어남.
+    // 그 외: stage가 대지 비율을 그대로 가져 cardwrap %가 카드 비율과 자동 일치.
     const stageCSS = full
-      ? `width:100vw;height:100vh`
+      ? `width:100vw;height:100vh;display:flex;align-items:center;justify-content:center`
       : `aspect-ratio:${ar};width:min(100vw, calc(100vh * ${ar}));height:min(100vh, calc(100vw / ${ar}))`;
+    const cardwrapCSS = full
+      ? `position:relative;aspect-ratio:${cardActualAR};width:min(${cardWpct}vw, calc(${cardHpct}vh * ${cardActualAR}))`
+      : `position:absolute;left:${cardL}%;top:${cardT}%;width:${cardWpct}%;height:${cardHpct}%`;
     const bgFit = full ? 'cover' : 'fill';
     return `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Card</title><style>
@@ -2976,7 +3031,7 @@ html,body{width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-s
 body{height:100vh;display:flex;align-items:center;justify-content:center;background:#000;font-family:system-ui,sans-serif}
 .stage{position:relative;${stageCSS};cursor:pointer;touch-action:none}
 .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:${bgFit};display:block;pointer-events:none}
-.cardwrap{position:absolute;left:${cardL}%;top:${cardT}%;width:${cardWpct}%;height:${cardHpct}%;perspective:2000px}
+.cardwrap{${cardwrapCSS};perspective:2000px}
 .flip{width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:rotateY(0)}
 .flip.b{animation:tb .58s cubic-bezier(.4,0,.2,1) forwards}
 .flip.f{animation:tf .58s cubic-bezier(.4,0,.2,1) forwards}
@@ -3002,6 +3057,11 @@ body{height:100vh;display:flex;align-items:center;justify-content:center;backgro
 }
 .swipe-arrow.left{left:14px}.swipe-arrow.right{right:14px}
 .swipe-arrow.show{opacity:1}
+#fs-btn{position:fixed;bottom:max(env(safe-area-inset-bottom,0px) + 14px,18px);right:16px;
+background:rgba(0,0,0,.4);border:none;border-radius:8px;color:#fff;font-size:18px;
+width:36px;height:36px;cursor:pointer;opacity:.5;transition:opacity .2s;z-index:10;
+line-height:1;padding:0;font-family:system-ui,sans-serif}
+#fs-btn:hover{opacity:1}
 </style></head><body>
 <div class="stage" id="w">
   <img class="bg" src="${bgURL}" alt="">
@@ -3013,6 +3073,7 @@ body{height:100vh;display:flex;align-items:center;justify-content:center;backgro
 <div class="hint" id="hint"></div>
 <div class="swipe-arrow left"  id="sa-l">‹</div>
 <div class="swipe-arrow right" id="sa-r">›</div>
+<button id="fs-btn" title="전체화면">⛶</button>
 <script>
 (function(){
   var f=document.getElementById('f'), busy=false, flipped=false;
@@ -3056,6 +3117,7 @@ body{height:100vh;display:flex;align-items:center;justify-content:center;backgro
   },{passive:true});
 
   document.getElementById('w').addEventListener('touchmove', function(e){
+    if(e.touches.length>1) return; // 핀치줌은 브라우저에 위임
     var dx=Math.abs(e.touches[0].clientX-tx0);
     var dy=Math.abs(e.touches[0].clientY-ty0);
     if(dx>8||dy>8) moved=true;
@@ -3080,6 +3142,23 @@ body{height:100vh;display:flex;align-items:center;justify-content:center;backgro
   document.addEventListener('keydown', function(e){
     if(e.key==='ArrowLeft'||e.key==='ArrowRight') doFlip(e.key==='ArrowLeft'?'left':'right');
   });
+
+  /* ── 전체보기 버튼 ── */
+  var fsBtn=document.getElementById('fs-btn');
+  fsBtn.addEventListener('click',function(e){
+    e.stopPropagation();
+    var el=document.documentElement;
+    if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+      (el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el);
+    } else {
+      (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+    }
+  });
+  function onFsChange(){
+    fsBtn.textContent=(document.fullscreenElement||document.webkitFullscreenElement)?'✕':'⛶';
+  }
+  document.addEventListener('fullscreenchange',onFsChange);
+  document.addEventListener('webkitfullscreenchange',onFsChange);
 })();
 <\/script></body></html>`;
   }
@@ -3092,8 +3171,57 @@ body{height:100vh;display:flex;align-items:center;justify-content:center;backgro
       const bg    = await backgroundToPng();
       const blob = new Blob([buildShareHTML(front, back, bg)], {type:'text/html'});
       downloadURL(URL.createObjectURL(blob), 'share.html');
-      setMsg('완료! share.html을 GitHub Pages에 올리면 공유됩니다.');
+      setMsg('완료! share.html 파일을 저장했어요.');
     } catch(e){ setMsg('오류: '+e.message); }
+  });
+
+  /* ----- 공유 링크 생성 (Cloudflare Worker + R2 업로드) -----
+     아래 SHARE_ENDPOINT를 배포한 Worker 주소로 바꿔주세요.
+     예: 'https://card.your-name.workers.dev'  */
+  const SHARE_ENDPOINT = 'https://stickus.bssofgod.workers.dev';
+
+  const exportLinkBtn   = document.getElementById('exportLinkBtn');
+  const exportLinkRow   = document.getElementById('exportLinkRow');
+  const exportLinkInput = document.getElementById('exportLinkInput');
+  const exportLinkCopy  = document.getElementById('exportLinkCopy');
+
+  exportLinkBtn.addEventListener('click', async ()=>{
+    if (SHARE_ENDPOINT.includes('YOUR-SUBDOMAIN')){
+      setMsg('⚠ 먼저 Worker를 배포하고 코드의 SHARE_ENDPOINT 주소를 바꿔주세요.');
+      return;
+    }
+    setMsg('링크 생성 중… (이미지 렌더링)');
+    exportLinkBtn.disabled = true;
+    try {
+      const front = await cardFaceToPng('front');
+      const back  = await cardFaceToPng('back');
+      const bg    = await backgroundToPng();
+      const html  = buildShareHTML(front, back, bg);
+      setMsg('업로드 중…');
+      const res = await fetch(SHARE_ENDPOINT + '/upload', {
+        method:'POST',
+        headers:{ 'Content-Type':'text/html' },
+        body: html
+      });
+      if (!res.ok) throw new Error('서버 응답 ' + res.status);
+      const data = await res.json();
+      const url = data.url || (SHARE_ENDPOINT + '/c/' + data.id);
+      exportLinkInput.value = url;
+      exportLinkRow.style.display = 'flex';
+      // 자동 클립보드 복사 시도
+      try { await navigator.clipboard.writeText(url); setMsg('✅ 링크 생성 완료 — 클립보드에 복사됐어요!'); }
+      catch(_){ setMsg('✅ 링크 생성 완료 — 아래 주소를 복사하세요.'); }
+    } catch(e){
+      setMsg('오류: ' + e.message + ' (인터넷/Worker 주소 확인)');
+    } finally {
+      exportLinkBtn.disabled = false;
+    }
+  });
+
+  exportLinkCopy.addEventListener('click', async ()=>{
+    exportLinkInput.select();
+    try { await navigator.clipboard.writeText(exportLinkInput.value); setMsg('복사됐어요!'); }
+    catch(_){ document.execCommand('copy'); setMsg('복사됐어요!'); }
   });
 
   /* ----- 초기화 ----- */
