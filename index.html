@@ -380,27 +380,34 @@
     outline:none; min-width:2em; text-align:right;
   }
   /* 본문: transform scale로 좌상단 고정 스케일 */
-  .back-letter-wrap { flex:1; overflow:hidden; }
+  .back-letter-wrap {
+    flex:1; min-height:0;
+    overflow-y:auto; overflow-x:hidden;
+    scrollbar-width:none;           /* Firefox */
+  }
+  .back-letter-wrap::-webkit-scrollbar { display:none; } /* WebKit */
   .back-letter {
     outline:none;
     transform:scale(var(--back-scale,1));
     transform-origin:top left;
-    width:calc(100% / var(--back-scale,1));   /* 스케일만큼 레이아웃 폭 보정 → 가로 클리핑 방지 */
+    width:calc(100% / var(--back-scale,1));
     font-family:var(--bf-body,"LibreBaskerville"), serif;
     font-size:2.8cqw;
-    line-height:var(--back-line-h,7cqw);
+    /* em 단위: 폰트 크기 기준이라 대지 폭이 바뀌어도 비율 유지 */
+    line-height:var(--back-line-h,2.5em);
     color:var(--back-text,#1a1a1a);
     word-break:break-word;
+    padding-bottom:var(--back-line-h,2.5em); /* 마지막 줄 잘림 방지 */
     background-image:repeating-linear-gradient(
       to bottom,
-      transparent, transparent calc(var(--back-line-h) - 1px),
-      var(--back-line-color,#c8c8c8) calc(var(--back-line-h) - 1px),
-      var(--back-line-color,#c8c8c8) var(--back-line-h)
+      transparent, transparent calc(var(--back-line-h, 2.5em) - 1px),
+      var(--back-line-color,#c8c8c8) calc(var(--back-line-h, 2.5em) - 1px),
+      var(--back-line-color,#c8c8c8) var(--back-line-h, 2.5em)
     );
-    background-size:100% var(--back-line-h);
+    background-size:100% var(--back-line-h,2.5em);
     caret-color:var(--back-text,#1a1a1a);
   }
-  .back-letter > div, .back-letter > p { margin:0; min-height:var(--back-line-h); }
+  .back-letter > div, .back-letter > p { margin:0; min-height:var(--back-line-h,2.5em); }
 
   /* ── 패널 탭 ── */
   .panel-tabs {
@@ -421,6 +428,13 @@
 
   /* ── 스티커 ── */
   .sticker-layer { position:absolute; inset:0; z-index:5; overflow:hidden; border-radius:var(--card-radius,6px); pointer-events:none; }
+  /* 텍스트 뒤 스티커 레이어 */
+  .sticker-layer.sticker-layer-behind { z-index:1; }
+  /* behind 레이어가 있을 때 카드 텍스트를 위로 올림 */
+  .card-front .headline,
+  .card-front .footer { position:relative; z-index:2; }
+  .card-back .back-header,
+  .card-back .back-letter-wrap { position:relative; z-index:2; }
   .sticker {
     position:absolute; cursor:grab; touch-action:none; pointer-events:auto;
     will-change:left,top,width;
@@ -623,6 +637,7 @@
             <div class="pad-zone pz-bottom" data-pz="v"></div>
             <div class="pad-zone pz-left"   data-pz="h"></div>
             <div class="pad-zone pz-right"  data-pz="h"></div>
+            <div class="sticker-layer sticker-layer-behind" id="sticker-layer-behind"></div>
             <div class="headline" contenteditable="true" spellcheck="false">WELCOME<br>TO THE TEAM,<br>DAVID!</div>
             <div class="footer">
               <p class="subtitle" contenteditable="true" spellcheck="false">can't wait for our future together</p>
@@ -632,6 +647,7 @@
 
           <!-- ░░ BACK ░░ -->
           <div class="card-face card-back" id="card-back">
+            <div class="sticker-layer sticker-layer-behind" id="sticker-layer-back-behind"></div>
             <div class="back-header">
               <div class="back-from" contenteditable="true" spellcheck="false">From. Your Name</div>
               <div class="back-date" contenteditable="true" spellcheck="false">June 2026</div>
@@ -895,6 +911,10 @@
       <input type="file" id="stickerUploadInput" accept="image/png,image/*" multiple style="display:none">
       <p class="hint" style="margin-top:0">스티커 클릭 시 추가 · 드래그로 이동 · 모서리로 크기조절 · ✕로 삭제<br>＋ 버튼으로 내 이미지 업로드 (PNG 권장 · 정방형 아니면 가운데 크롭)</p>
       <div id="stickerFxGroup" style="display:flex;flex-direction:column;gap:10px;opacity:.4;pointer-events:none">
+        <div class="seg" id="stkLayerSeg">
+          <button data-layer="front" class="active">텍스트 앞</button>
+          <button data-layer="behind">텍스트 뒤</button>
+        </div>
         <button class="btn-ghost" id="stkFlip">↔ 좌우반전</button>
         <label class="chk"><input type="checkbox" id="stkShadow"> 그림자</label>
         <div id="stkShadowRow" style="display:none">
@@ -982,8 +1002,8 @@
       <div class="group">
         <label>줄 간격</label>
         <div class="rangewrap">
-          <input type="range" id="backLineH" min="4" max="12" step="0.5" value="7">
-          <output id="backLineHOut">7cqw</output>
+          <input type="range" id="backLineH" min="1.5" max="4" step="0.05" value="2.5">
+          <output id="backLineHOut">2.5em</output>
         </div>
       </div>
       <div class="group">
@@ -2225,7 +2245,7 @@
   });
   // 줄 간격
   document.getElementById('backLineH').addEventListener('input', e => {
-    const v = e.target.value + 'cqw';
+    const v = e.target.value + 'em';
     setBackVar('--back-line-h', v);
     document.getElementById('backLineHOut').textContent = v;
   });
@@ -2303,6 +2323,10 @@
     g.style.opacity = on ? '1' : '.4';
     g.style.pointerEvents = on ? 'auto' : 'none';
     if (on){
+      // 레이어(앞/뒤) 버튼 동기화
+      document.querySelectorAll('#stkLayerSeg button').forEach(b=>
+        b.classList.toggle('active', b.dataset.layer === (selectedSticker.behind ? 'behind' : 'front'))
+      );
       document.getElementById('stkShadow').checked  = selectedSticker.shadow;
       document.getElementById('stkShadowRow').style.display = selectedSticker.shadow ? 'block' : 'none';
       document.getElementById('stkShadowAmt').value = selectedSticker.shadowAmt;
@@ -2314,6 +2338,17 @@
       document.getElementById('stkOutlineColor').value = selectedSticker.outlineColor;
       document.getElementById('stkOutlineColorHex').value = selectedSticker.outlineColor.toUpperCase();
     }
+  }
+
+  // 스티커 레이어 ID 반환 (앞면/뒷면 × 텍스트앞/뒤)
+  function stickerLayerId(face, behind){
+    if (face === 'back') return behind ? 'sticker-layer-back-behind' : 'sticker-layer-back';
+    return behind ? 'sticker-layer-behind' : 'sticker-layer';
+  }
+  function moveStickerLayer(s, behind){
+    s.behind = behind;
+    const layerId = stickerLayerId(s.face, behind);
+    document.getElementById(layerId).appendChild(s.el);
   }
   function deleteSticker(s){
     const i = stickers.indexOf(s);
@@ -2338,7 +2373,7 @@
       el.querySelector('img').src = src;
       const s = { el, src, aspect, wf:0.3, xf:0, yf:0, rot:0, flipX:false,
                   shadow:false, shadowAmt:50, outline:false, outlineW:1.1, outlineColor:'#ffffff',
-                  face:(isFlipped?'back':'front') };
+                  face:(isFlipped?'back':'front'), behind:false };
       if (opts){
         Object.assign(s, opts, { el, src, aspect });   // 저장값 복원 (el/src/aspect 보존)
       } else {
@@ -2346,10 +2381,7 @@
         s.xf = (cardW - wpx)/2 / cardW;
         s.yf = (cardH - hpx)/2 / cardH;
       }
-      const layer = s.face==='back'
-        ? document.getElementById('sticker-layer-back')
-        : document.getElementById('sticker-layer');
-      layer.appendChild(el);
+      document.getElementById(stickerLayerId(s.face, !!s.behind)).appendChild(el);
       stickers.push(s);
       layoutSticker(s);
       bindSticker(s);
@@ -2516,6 +2548,16 @@
   });
 
   // 선택 스티커 효과: 그림자 / 외곽선
+  // 텍스트 앞/뒤 레이어 전환
+  document.querySelectorAll('#stkLayerSeg button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if (!selectedSticker) return;
+      document.querySelectorAll('#stkLayerSeg button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      moveStickerLayer(selectedSticker, b.dataset.layer === 'behind');
+    });
+  });
+
   document.getElementById('stkFlip').addEventListener('click', ()=>{
     if (!selectedSticker) return;
     selectedSticker.flipX = !selectedSticker.flipX;
@@ -2608,7 +2650,7 @@
         btext: cssVar('--back-text')||'#1a1a1a',
         lineH: $('backLineH').value, scale: $('backSize').value
       },
-      stickers: stickers.map(s=>({ src:s.src, face:s.face, wf:s.wf, xf:s.xf, yf:s.yf, rot:s.rot, flipX:s.flipX,
+      stickers: stickers.map(s=>({ src:s.src, face:s.face, behind:!!s.behind, wf:s.wf, xf:s.xf, yf:s.yf, rot:s.rot, flipX:s.flipX,
         shadow:s.shadow, shadowAmt:s.shadowAmt, outline:s.outline, outlineW:s.outlineW, outlineColor:s.outlineColor }))
     };
   }
@@ -2692,7 +2734,7 @@
       if(b.paper){ root.style.setProperty('--back-paper',b.paper); setCI('backPaper','backPaperHex',b.paper); }
       if(b.line){  root.style.setProperty('--back-line-color',b.line); setCI('backLineColor','backLineColorHex',b.line); }
       if(b.btext){ root.style.setProperty('--back-text',b.btext); setCI('backTextColor','backTextColorHex',b.btext); }
-      if(b.lineH){ root.style.setProperty('--back-line-h',b.lineH+'cqw'); $('backLineH').value=b.lineH; $('backLineHOut').textContent=b.lineH+'cqw'; }
+      if(b.lineH){ root.style.setProperty('--back-line-h',b.lineH+'em'); $('backLineH').value=b.lineH; $('backLineHOut').textContent=b.lineH+'em'; }
       if(b.scale){ root.style.setProperty('--back-scale',b.scale); $('backSize').value=b.scale; $('backSizeOut').textContent=Math.round(b.scale*100)+'%'; }
     }
     // 스티커 재생성
